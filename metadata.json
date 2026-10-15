@@ -1,0 +1,6 @@
+{
+  "name": "My AI Mentor",
+  "description": "Personal AI study mentor, university timetable manager, productivity tracker, and self-improvement coach for BS Artificial Intelligence students.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

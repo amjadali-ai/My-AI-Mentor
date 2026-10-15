@@ -1,0 +1,42 @@
+appId: com.myaimentor.app
+productName: My AI Mentor
+copyright: Copyright © 2026 My AI Mentor
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - dist/**/*
+  - dist-server/**/*
+  - electron/**/*
+  - build/**/*
+  - package.json
+  - "!**/*.ts"
+  - "!src/**/*"
+  - "!tests/**/*"
+  - "!scripts/**/*"
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+  executableName: My AI Mentor
+  artifactName: "My AI Mentor Setup.${ext}"
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  allowElevation: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: "My AI Mentor"
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  uninstallDisplayName: "My AI Mentor"
+  deleteAppDataOnUninstall: false
+  runAfterFinish: true
+  differentialPackage: false
