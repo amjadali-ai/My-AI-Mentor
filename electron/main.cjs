@@ -49,7 +49,13 @@ async function startLocalServer() {
     return serverPort;
   }
 
-  process.env.PORT = '0'; // Ephemeral port to avoid conflicts
+  if (isDev) {
+  // Use dev server port if provided, otherwise let OS assign a random port for development.
+  process.env.PORT = process.env.DEV_SERVER_PORT || '0';
+} else {
+  // Fixed port for packaged production to ensure stable IndexedDB origin across launches.
+  process.env.PORT = '3000';
+} // Ephemeral port to avoid conflicts
   
   // Locate bundled server
   const serverPath = path.join(__dirname, '../dist-server/server.mjs');
@@ -221,6 +227,16 @@ app.on('before-quit', (e) => {
     } catch (err) {
       console.error('[Desktop] Error closing server:', err);
     }
+  }
+});
+
+// Also ensure server is stopped when Electron is quitting completely.
+app.on('will-quit', () => {
+  if (serverInstance) {
+    try {
+      serverInstance.close();
+    } catch (_) {}
+    serverInstance = null;
   }
 });
 

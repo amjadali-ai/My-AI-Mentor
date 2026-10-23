@@ -26,7 +26,7 @@ const CATEGORIES: { id: GoalCategory; label: string }[] = [
 ];
 
 export const GoalsView: React.FC = () => {
-  const { goals, addGoal, updateGoal, deleteGoal, toggleMilestone } = useApp();
+  const { goals, tasks, addGoal, updateGoal, deleteGoal, toggleMilestone, setTaskStatus } = useApp();
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [showGoalModal, setShowGoalModal] = useState(false);
@@ -222,44 +222,95 @@ export const GoalsView: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Milestones Checklist */}
-                  <div className="space-y-2 border-t border-slate-100 dark:border-slate-800/80 pt-3">
+                  {/* Milestones Checklist & Linked Tasks */}
+                  <div className="space-y-3 border-t border-slate-100 dark:border-slate-800/80 pt-3">
                     <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                      Milestone Roadmap:
+                      Milestone Roadmap & Connected Tasks:
                     </span>
-                    {goal.milestones.map(m => (
-                      <div
-                        key={m.id}
-                        onClick={() => toggleMilestone(goal.id, m.id)}
-                        className={`flex items-start gap-2.5 p-2 rounded-lg cursor-pointer transition-colors ${
-                          m.completed
-                            ? 'bg-slate-50/60 dark:bg-slate-800/20 text-slate-500'
-                            : 'hover:bg-slate-50 dark:hover:bg-slate-800/40 text-slate-800 dark:text-slate-200'
-                        }`}
-                      >
-                        <button type="button" className="mt-0.5 shrink-0 text-slate-400">
-                          {m.completed ? (
-                            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                          ) : (
-                            <Circle className="w-4 h-4" />
-                          )}
-                        </button>
-                        <div className="flex-1 min-w-0">
-                          <span
-                            className={`text-xs block ${
-                              m.completed ? 'line-through text-slate-400' : 'font-medium'
-                            }`}
+                    {goal.milestones.map(m => {
+                      const linkedTasks = tasks.filter(t => t.goalId === goal.id && t.milestoneId === m.id);
+
+                      return (
+                        <div key={m.id} className="space-y-1.5 bg-slate-50/50 dark:bg-slate-800/30 p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
+                          <div
+                            onClick={() => toggleMilestone(goal.id, m.id)}
+                            className="flex items-start gap-2.5 cursor-pointer"
                           >
-                            {m.title}
-                          </span>
-                          {m.completedAt && (
-                            <span className="text-[10px] text-slate-400 font-mono block">
-                              Completed {m.completedAt.split('T')[0]}
-                            </span>
+                            <button type="button" className="mt-0.5 shrink-0 text-slate-400">
+                              {m.completed ? (
+                                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                              ) : (
+                                <Circle className="w-4 h-4" />
+                              )}
+                            </button>
+                            <div className="flex-1 min-w-0">
+                              <span
+                                className={`text-xs block ${
+                                  m.completed ? 'line-through text-slate-400' : 'font-medium text-slate-900 dark:text-slate-100'
+                                }`}
+                              >
+                                {m.title}
+                              </span>
+                              {m.completedAt && (
+                                <span className="text-[10px] text-slate-400 font-mono block">
+                                  Completed {m.completedAt.split('T')[0]}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Sub-tasks directly supporting this milestone */}
+                          {linkedTasks.length > 0 && (
+                            <div className="ml-6 pl-2.5 border-l-2 border-indigo-200 dark:border-indigo-900/60 space-y-1 mt-1.5">
+                              {linkedTasks.map(task => {
+                                const isDone = task.status === 'completed';
+                                return (
+                                  <div
+                                    key={task.id}
+                                    className="flex items-center justify-between text-[11px] py-0.5 text-slate-600 dark:text-slate-400"
+                                  >
+                                    <span className={isDone ? 'line-through text-slate-400' : ''}>
+                                      • {task.title}
+                                    </span>
+                                    <span className="font-mono text-[10px] opacity-75">
+                                      {task.plannedDate || 'Pending'}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
+
+                    {/* General Goal Tasks (Tasks linked to goal without specific milestone) */}
+                    {(() => {
+                      const generalGoalTasks = tasks.filter(t => t.goalId === goal.id && !t.milestoneId);
+                      if (generalGoalTasks.length === 0) return null;
+                      return (
+                        <div className="pt-2">
+                          <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block mb-1">
+                            General Tasks for this Goal ({generalGoalTasks.length}):
+                          </span>
+                          <div className="space-y-1 pl-1">
+                            {generalGoalTasks.map(t => (
+                              <div
+                                key={t.id}
+                                className="flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800"
+                              >
+                                <span className={t.status === 'completed' ? 'line-through text-slate-400' : 'text-slate-800 dark:text-slate-200'}>
+                                  {t.title}
+                                </span>
+                                <span className="text-[10px] font-mono text-slate-400">
+                                  {t.status === 'completed' ? 'Done' : `${t.estimatedMinutes}m`}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
 

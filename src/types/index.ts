@@ -24,6 +24,7 @@ export interface Task {
   category: TaskCategory;
   subjectId?: string; // Optional link to university subject
   goalId?: string; // Optional link to active goal
+  milestoneId?: string; // Optional link to specific goal milestone
   priority: Priority;
   deadline?: string; // YYYY-MM-DD or ISO
   plannedDate?: string; // YYYY-MM-DD
@@ -51,15 +52,19 @@ export interface UniversitySubject {
 
 export type DayOfWeek = 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday' | 'Sunday';
 
+export type ActivityType = 'Lecture' | 'Lab' | 'Tutorial' | 'Seminar' | 'Study Session' | 'Assignment Work' | 'Revision' | 'Break' | 'Personal';
+
 export interface TimetableClass {
   id: string;
-  subjectId: string;
+  subjectId: string; // Subject ID or "personal" / empty for non-subject activities
+  title?: string; // Optional custom title for personal study/activity
   day: DayOfWeek;
   startTime: string; // HH:mm (24-hour)
   endTime: string; // HH:mm
   room?: string;
-  classType: 'Lecture' | 'Lab' | 'Tutorial' | 'Seminar';
+  classType: 'Lecture' | 'Lab' | 'Tutorial' | 'Seminar' | ActivityType;
   isRecurring: boolean;
+  notes?: string;
 }
 
 export type AssessmentType = 'Assignment' | 'Quiz' | 'Lab Report' | 'Midterm Exam' | 'Final Exam' | 'Term Project';

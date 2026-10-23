@@ -15,7 +15,8 @@ files:
   - "!**/*.ts"
   - "!src/**/*"
   - "!tests/**/*"
-  - "!scripts/**/*"
+  - "!**/.env"
+  - "!**/.env.*"
 
 win:
   target:

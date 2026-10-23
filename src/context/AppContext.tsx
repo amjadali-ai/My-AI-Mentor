@@ -166,6 +166,9 @@ interface AppContextType {
   // Computed Real Analytics
   todayTasks: Task[];
   tomorrowTasks: Task[];
+  overdueTasks: Task[];
+  upcomingTasks: Task[];
+  completedTasks: Task[];
   todaySchedule: Array<{ slot: TimetableClass; subject: UniversitySubject }>;
   nextClass: { slot: TimetableClass; subject: UniversitySubject; startsInMinutes: number } | null;
   todayStudyMinutes: number;
@@ -1162,27 +1165,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const todayDayName = useMemo(() => getLocalDayName(), []);
 
   const todayTasks = useMemo(() => {
-    return tasks.filter(t => t.plannedDate === todayStr || (!t.plannedDate && t.status !== 'completed'));
+    return tasks.filter(t => t.status !== 'completed' && (t.plannedDate === todayStr || !t.plannedDate));
   }, [tasks, todayStr]);
 
   const tomorrowTasks = useMemo(() => {
-    return tasks.filter(t => t.plannedDate === tomorrowStr);
+    return tasks.filter(t => t.status !== 'completed' && t.plannedDate === tomorrowStr);
   }, [tasks, tomorrowStr]);
+
+  const overdueTasks = useMemo(() => {
+    return tasks.filter(t => t.status !== 'completed' && t.plannedDate && t.plannedDate < todayStr);
+  }, [tasks, todayStr]);
+
+  const upcomingTasks = useMemo(() => {
+    return tasks.filter(t => t.status !== 'completed' && t.plannedDate && t.plannedDate > todayStr);
+  }, [tasks, todayStr]);
+
+  const completedTasks = useMemo(() => {
+    return tasks.filter(t => t.status === 'completed');
+  }, [tasks]);
 
   const todaySchedule = useMemo(() => {
     const slots = timetable.filter(t => t.day === todayDayName);
     return slots
-      .map(slot => ({
-        slot,
-        subject: subjects.find(s => s.id === slot.subjectId) || {
-          id: slot.subjectId,
-          code: 'Course',
-          name: 'Course Name',
-          instructor: 'TBD',
-          creditHours: 3,
-          color: '#64748b',
-        },
-      }))
+      .map(slot => {
+        const foundSub = subjects.find(s => s.id === slot.subjectId);
+        const isPersonal = slot.subjectId === 'personal' || !slot.subjectId || !foundSub;
+        return {
+          slot,
+          subject: foundSub || {
+            id: slot.subjectId || 'personal',
+            code: slot.title || (isPersonal ? 'Personal' : 'Course'),
+            name: slot.title || (isPersonal ? 'Personal Activity' : 'Course Activity'),
+            instructor: isPersonal ? 'Self-directed' : 'TBD',
+            creditHours: 0,
+            color: isPersonal ? '#8b5cf6' : '#64748b',
+          },
+        };
+      })
       .sort((a, b) => a.slot.startTime.localeCompare(b.slot.startTime));
   }, [timetable, subjects, todayDayName]);
 
@@ -1291,6 +1310,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     pullCloudDataToLocal,
     todayTasks,
     tomorrowTasks,
+    overdueTasks,
+    upcomingTasks,
+    completedTasks,
     todaySchedule,
     nextClass,
     todayStudyMinutes,

@@ -35,6 +35,11 @@ export const UniversityView: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'timetable' | 'subjects' | 'deadlines'>('timetable');
 
+  // Timetable view mode & filter
+  const [timetableMode, setTimetableMode] = useState<'week' | 'day'>('week');
+  const [selectedDay, setSelectedDay] = useState<DayOfWeek>('Monday');
+  const [activityCategoryFilter, setActivityCategoryFilter] = useState<'all' | 'university' | 'personal'>('all');
+
   // Modals state
   const [showSubjectModal, setShowSubjectModal] = useState(false);
   const [editingSubject, setEditingSubject] = useState<UniversitySubject | null>(null);
@@ -55,13 +60,16 @@ export const UniversityView: React.FC = () => {
   const [subNotes, setSubNotes] = useState('');
   const [subTargetGrade, setSubTargetGrade] = useState('A');
 
-  // Class Form State
-  const [classSubjectId, setClassSubjectId] = useState(subjects[0]?.id || '');
+  // Class / Activity Form State
+  const [classSubjectId, setClassSubjectId] = useState(subjects[0]?.id || 'personal');
+  const [classTitle, setClassTitle] = useState('');
   const [classDay, setClassDay] = useState<DayOfWeek>('Monday');
   const [classStart, setClassStart] = useState('09:00');
   const [classEnd, setClassEnd] = useState('10:30');
   const [classRoom, setClassRoom] = useState('');
-  const [classType, setClassType] = useState<'Lecture' | 'Lab' | 'Tutorial'>('Lecture');
+  const [classType, setClassType] = useState<string>('Lecture');
+  const [classNotes, setClassNotes] = useState('');
+  const [isClassRecurring, setIsClassRecurring] = useState(true);
 
   // Deadline Form State
   const [dlSubjectId, setDlSubjectId] = useState(subjects[0]?.id || '');
@@ -136,47 +144,69 @@ export const UniversityView: React.FC = () => {
     if (cls) {
       setEditingClass(cls);
       setClassSubjectId(cls.subjectId);
+      setClassTitle(cls.title || '');
       setClassDay(cls.day);
       setClassStart(cls.startTime);
       setClassEnd(cls.endTime);
       setClassRoom(cls.room || '');
-      setClassType(cls.classType as any);
+      setClassType(cls.classType);
+      setClassNotes(cls.notes || '');
+      setIsClassRecurring(cls.isRecurring ?? true);
     } else {
       setEditingClass(null);
-      setClassSubjectId(subjects[0]?.id || '');
-      setClassDay('Monday');
+      setClassSubjectId(subjects[0]?.id || 'personal');
+      setClassTitle('');
+      setClassDay(timetableMode === 'day' ? selectedDay : 'Monday');
       setClassStart('09:00');
       setClassEnd('10:30');
       setClassRoom('');
       setClassType('Lecture');
+      setClassNotes('');
+      setIsClassRecurring(true);
     }
     setShowClassModal(true);
   };
 
   const handleSaveClass = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!classSubjectId) return;
+    if (!classStart || !classEnd) return;
+
+    // Check for potential overlaps on the same day (non-blocking warning)
+    const existingSameDay = timetable.filter(
+      t => t.day === classDay && (!editingClass || t.id !== editingClass.id)
+    );
+    const hasOverlap = existingSameDay.some(
+      t => classStart < t.endTime && classEnd > t.startTime
+    );
+    if (hasOverlap) {
+      // Non-blocking notice
+      console.warn(`[Timetable] Notice: Scheduled slot ${classStart}-${classEnd} overlaps with an existing activity on ${classDay}.`);
+    }
 
     if (editingClass) {
       await updateClassSlot({
         ...editingClass,
         subjectId: classSubjectId,
+        title: classTitle.trim() || undefined,
         day: classDay,
         startTime: classStart,
         endTime: classEnd,
         room: classRoom.trim(),
-        classType,
-        isRecurring: true,
+        classType: classType as any,
+        notes: classNotes.trim() || undefined,
+        isRecurring: isClassRecurring,
       });
     } else {
       await addClassSlot({
         subjectId: classSubjectId,
+        title: classTitle.trim() || undefined,
         day: classDay,
         startTime: classStart,
         endTime: classEnd,
         room: classRoom.trim(),
-        classType,
-        isRecurring: true,
+        classType: classType as any,
+        notes: classNotes.trim() || undefined,
+        isRecurring: isClassRecurring,
       });
     }
     setShowClassModal(false);
@@ -296,110 +326,360 @@ export const UniversityView: React.FC = () => {
         </div>
       </div>
 
-      {/* TAB 1: WEEKLY TIMETABLE */}
+      {/* TAB 1: 7-DAY TIMETABLE & PERSONAL ACTIVITIES */}
       {activeTab === 'timetable' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
-              Total Course Load: {totalCredits} Credit Hours · Monday to Friday
-            </span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Week vs Day view switcher */}
+              <div className="flex items-center gap-1 p-1 bg-slate-200/70 dark:bg-slate-800/80 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setTimetableMode('week')}
+                  className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors ${
+                    timetableMode === 'week'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  Full 7-Day Week
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTimetableMode('day');
+                    const localDay = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
+                    setSelectedDay(localDay);
+                  }}
+                  className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors ${
+                    timetableMode === 'day'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  Day View
+                </button>
+              </div>
+
+              {/* Activity filter: All vs University vs Personal */}
+              <div className="flex items-center gap-1 p-1 bg-slate-200/70 dark:bg-slate-800/80 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setActivityCategoryFilter('all')}
+                  className={`px-2.5 py-1 text-[11px] font-medium rounded-lg transition-colors ${
+                    activityCategoryFilter === 'all'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActivityCategoryFilter('university')}
+                  className={`px-2.5 py-1 text-[11px] font-medium rounded-lg transition-colors ${
+                    activityCategoryFilter === 'university'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  University Classes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActivityCategoryFilter('personal')}
+                  className={`px-2.5 py-1 text-[11px] font-medium rounded-lg transition-colors ${
+                    activityCategoryFilter === 'personal'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  Personal & Study
+                </button>
+              </div>
+            </div>
+
             <button
               onClick={() => handleOpenClassModal()}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-colors"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-colors self-start sm:self-auto"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Add Class Slot</span>
+              <span>Add Schedule Slot</span>
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            {DAYS.slice(0, 5).map(day => {
-              const dayClasses = timetable
-                .filter(t => t.day === day)
-                .sort((a, b) => a.startTime.localeCompare(b.startTime));
-
-              const isToday = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1] === day;
-
-              return (
-                <div
-                  key={day}
-                  className={`bg-white dark:bg-slate-900 border rounded-2xl p-4 shadow-xs flex flex-col ${
-                    isToday
-                      ? 'border-indigo-500/50 ring-1 ring-indigo-500/20'
-                      : 'border-slate-200 dark:border-slate-800'
-                  }`}
-                >
-                  <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100 dark:border-slate-800">
-                    <span className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                      {day}
-                    </span>
+          {/* DAY VIEW SELECTOR PILLS */}
+          {timetableMode === 'day' && (
+            <div className="flex items-center gap-1 overflow-x-auto pb-1">
+              {DAYS.map(day => {
+                const isSelected = selectedDay === day;
+                const isToday = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1] === day;
+                const count = timetable.filter(t => t.day === day).length;
+                return (
+                  <button
+                    key={day}
+                    type="button"
+                    onClick={() => setSelectedDay(day)}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-xl whitespace-nowrap transition-colors flex items-center gap-1.5 ${
+                      isSelected
+                        ? 'bg-indigo-600 text-white font-semibold shadow-xs'
+                        : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <span>{day}</span>
                     {isToday && (
-                      <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 uppercase">
+                      <span className={`text-[9px] px-1 py-0.2 rounded-full ${isSelected ? 'bg-indigo-700 text-indigo-100' : 'bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400'}`}>
                         Today
                       </span>
                     )}
+                    <span className="text-[10px] opacity-75">({count})</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* 7-DAY FULL WEEK GRID */}
+          {timetableMode === 'week' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3.5">
+              {DAYS.map(day => {
+                const dayClasses = timetable
+                  .filter(t => {
+                    if (t.day !== day) return false;
+                    const isPersonal = t.subjectId === 'personal' || !subjects.some(s => s.id === t.subjectId);
+                    if (activityCategoryFilter === 'university' && isPersonal) return false;
+                    if (activityCategoryFilter === 'personal' && !isPersonal) return false;
+                    return true;
+                  })
+                  .sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+                const isToday = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1] === day;
+
+                // Check for overlapping activities in this day
+                const overlaps: string[] = [];
+                for (let i = 0; i < dayClasses.length; i++) {
+                  for (let j = i + 1; j < dayClasses.length; j++) {
+                    const a = dayClasses[i];
+                    const b = dayClasses[j];
+                    if (a.startTime < b.endTime && a.endTime > b.startTime) {
+                      overlaps.push(a.id);
+                      overlaps.push(b.id);
+                    }
+                  }
+                }
+
+                return (
+                  <div
+                    key={day}
+                    className={`bg-white dark:bg-slate-900 border rounded-2xl p-3.5 shadow-xs flex flex-col ${
+                      isToday
+                        ? 'border-indigo-500/60 ring-1 ring-indigo-500/20'
+                        : 'border-slate-200 dark:border-slate-800'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-800">
+                      <span className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                        {day.slice(0, 3)}
+                      </span>
+                      {isToday && (
+                        <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 uppercase">
+                          Today
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="space-y-2 flex-1">
+                      {dayClasses.length === 0 ? (
+                        <div className="py-6 text-center text-[11px] text-slate-400">
+                          Free Day
+                        </div>
+                      ) : (
+                        dayClasses.map(cls => {
+                          const sub = subjects.find(s => s.id === cls.subjectId);
+                          const isPersonal = !sub;
+                          const hasOverlap = overlaps.includes(cls.id);
+
+                          return (
+                            <div
+                              key={cls.id}
+                              className={`p-2.5 rounded-xl border group relative transition-colors ${
+                                hasOverlap
+                                  ? 'border-amber-400 dark:border-amber-600/60 bg-amber-50/40 dark:bg-amber-950/20'
+                                  : isPersonal
+                                  ? 'border-violet-200 dark:border-violet-900/60 bg-violet-50/40 dark:bg-violet-950/20'
+                                  : 'border-slate-200/80 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-800/30'
+                              } hover:border-slate-300 dark:hover:border-slate-700`}
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <span
+                                  className="text-xs font-bold truncate max-w-[95px]"
+                                  style={{ color: sub?.color || '#8b5cf6' }}
+                                >
+                                  {cls.title || sub?.code || 'Activity'}
+                                </span>
+                                <span className="text-[10px] text-slate-400 font-mono">
+                                  {cls.classType}
+                                </span>
+                              </div>
+
+                              <div className="text-[11px] font-medium text-slate-800 dark:text-slate-200 truncate">
+                                {sub ? sub.name : cls.title || 'Personal Study'}
+                              </div>
+
+                              <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 font-mono flex items-center justify-between">
+                                <span>
+                                  {cls.startTime}–{cls.endTime}
+                                </span>
+                                {cls.room && <span className="truncate max-w-[60px]">{cls.room}</span>}
+                              </div>
+
+                              {cls.notes && (
+                                <p className="text-[10px] text-slate-400 mt-1 italic truncate">
+                                  {cls.notes}
+                                </p>
+                              )}
+
+                              {hasOverlap && (
+                                <div className="mt-1 flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400">
+                                  <AlertCircle className="w-3 h-3 shrink-0" />
+                                  <span>Time overlap</span>
+                                </div>
+                              )}
+
+                              {/* Hover Edit/Delete */}
+                              <div className="absolute top-1.5 right-1.5 hidden group-hover:flex items-center gap-1 bg-white dark:bg-slate-900 p-0.5 rounded-md shadow-xs border border-slate-200 dark:border-slate-700">
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenClassModal(cls)}
+                                  className="p-1 text-slate-400 hover:text-indigo-500"
+                                >
+                                  <Edit2 className="w-3 h-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => deleteClassSlot(cls.id)}
+                                  className="p-1 text-slate-400 hover:text-rose-500"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
                   </div>
+                );
+              })}
+            </div>
+          ) : (
+            /* DETAILED DAY VIEW */
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    {selectedDay}'s Detailed Schedule
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Chronological plan of lectures, labs, and personal study blocks
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleOpenClassModal()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Activity to {selectedDay}</span>
+                </button>
+              </div>
 
-                  <div className="space-y-2.5 flex-1">
-                    {dayClasses.length === 0 ? (
-                      <div className="py-8 text-center text-[11px] text-slate-400">
-                        No classes
-                      </div>
-                    ) : (
-                      dayClasses.map(cls => {
-                        const sub = subjects.find(s => s.id === cls.subjectId);
-                        return (
-                          <div
-                            key={cls.id}
-                            className="p-2.5 rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-800/30 group relative hover:border-slate-300 dark:hover:border-slate-700 transition-colors"
-                          >
-                            <div className="flex items-center justify-between mb-1">
-                              <span
-                                className="text-xs font-bold truncate max-w-[110px]"
-                                style={{ color: sub?.color || '#3b82f6' }}
-                              >
-                                {sub?.code || 'Course'}
-                              </span>
-                              <span className="text-[10px] text-slate-400 font-mono">
-                                {cls.classType}
-                              </span>
+              {(() => {
+                const daySlots = timetable
+                  .filter(t => {
+                    if (t.day !== selectedDay) return false;
+                    const isPersonal = t.subjectId === 'personal' || !subjects.some(s => s.id === t.subjectId);
+                    if (activityCategoryFilter === 'university' && isPersonal) return false;
+                    if (activityCategoryFilter === 'personal' && !isPersonal) return false;
+                    return true;
+                  })
+                  .sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+                if (daySlots.length === 0) {
+                  return (
+                    <div className="py-12 text-center text-xs text-slate-500 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+                      No activities or classes scheduled for {selectedDay}.
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-3">
+                    {daySlots.map(cls => {
+                      const sub = subjects.find(s => s.id === cls.subjectId);
+                      const isPersonal = !sub;
+
+                      return (
+                        <div
+                          key={cls.id}
+                          className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 gap-3"
+                        >
+                          <div className="flex items-start gap-3.5">
+                            <div
+                              className="w-2.5 h-12 rounded-full shrink-0"
+                              style={{ backgroundColor: sub?.color || '#8b5cf6' }}
+                            />
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-bold text-slate-900 dark:text-white">
+                                  {cls.title || sub?.code || 'Activity'}
+                                </span>
+                                {sub && (
+                                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                                    · {sub.name}
+                                  </span>
+                                )}
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium">
+                                  {cls.classType}
+                                </span>
+                              </div>
+                              <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex flex-wrap items-center gap-2">
+                                {cls.room && <span>Location: {cls.room}</span>}
+                                {sub?.instructor && <span>· Instructor: {sub.instructor}</span>}
+                                {cls.notes && <span>· Note: {cls.notes}</span>}
+                              </div>
                             </div>
+                          </div>
 
-                            <div className="text-[11px] font-medium text-slate-800 dark:text-slate-200 truncate">
-                              {sub?.name || 'Class'}
-                            </div>
-
-                            <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 font-mono flex items-center justify-between">
-                              <span>
-                                {cls.startTime}–{cls.endTime}
-                              </span>
-                              <span>{cls.room || 'Room TBD'}</span>
-                            </div>
-
-                            {/* Hover Edit/Delete */}
-                            <div className="absolute top-1.5 right-1.5 hidden group-hover:flex items-center gap-1 bg-white dark:bg-slate-900 p-0.5 rounded-md shadow-xs border border-slate-200 dark:border-slate-700">
+                          <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+                            <span className="text-xs font-semibold font-mono text-slate-800 dark:text-slate-200 tabular-nums">
+                              {cls.startTime} – {cls.endTime}
+                            </span>
+                            <div className="flex items-center gap-1">
                               <button
+                                type="button"
                                 onClick={() => handleOpenClassModal(cls)}
-                                className="p-1 text-slate-400 hover:text-indigo-500"
+                                className="p-1.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
                               >
-                                <Edit2 className="w-3 h-3" />
+                                <Edit2 className="w-3.5 h-3.5" />
                               </button>
                               <button
+                                type="button"
                                 onClick={() => deleteClassSlot(cls.id)}
-                                className="p-1 text-slate-400 hover:text-rose-500"
+                                className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
                               >
-                                <Trash2 className="w-3 h-3" />
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           </div>
-                        );
-                      })
-                    )}
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })()}
+            </div>
+          )}
         </div>
       )}
 
@@ -754,21 +1034,58 @@ export const UniversityView: React.FC = () => {
             </div>
 
             <form onSubmit={handleSaveClass} className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Activity Type
+                  </label>
+                  <select
+                    value={classType}
+                    onChange={e => setClassType(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-white"
+                  >
+                    <option value="Lecture">University Lecture</option>
+                    <option value="Lab">University Lab</option>
+                    <option value="Tutorial">Tutorial / Discussion</option>
+                    <option value="Seminar">Seminar</option>
+                    <option value="Study Session">Self Study Session</option>
+                    <option value="Assignment Work">Assignment / Project</option>
+                    <option value="Revision">Exam Revision</option>
+                    <option value="Break">Rest / Break</option>
+                    <option value="Personal">Personal Routine</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Related Subject (Optional)
+                  </label>
+                  <select
+                    value={classSubjectId}
+                    onChange={e => setClassSubjectId(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-white"
+                  >
+                    <option value="personal">None (Personal / Non-Course Activity)</option>
+                    {subjects.map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.code} · {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               <div>
                 <label className="block font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Subject
+                  Custom Activity Title (Optional for courses, recommended for personal)
                 </label>
-                <select
-                  value={classSubjectId}
-                  onChange={e => setClassSubjectId(e.target.value)}
+                <input
+                  type="text"
+                  value={classTitle}
+                  onChange={e => setClassTitle(e.target.value)}
+                  placeholder="e.g. C++ Dijkstra Practice, Gym & Wellbeing, Gym, Lunch..."
                   className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-white"
-                >
-                  {subjects.map(s => (
-                    <option key={s.id} value={s.id}>
-                      {s.code} · {s.name}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -788,19 +1105,18 @@ export const UniversityView: React.FC = () => {
                     ))}
                   </select>
                 </div>
+
                 <div>
                   <label className="block font-medium text-slate-700 dark:text-slate-300 mb-1">
-                    Class Type
+                    Location / Room (Optional)
                   </label>
-                  <select
-                    value={classType}
-                    onChange={e => setClassType(e.target.value as any)}
+                  <input
+                    type="text"
+                    value={classRoom}
+                    onChange={e => setClassRoom(e.target.value)}
+                    placeholder="e.g. SST 1 504B or Library / Home"
                     className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-white"
-                  >
-                    <option value="Lecture">Lecture</option>
-                    <option value="Lab">Lab Session</option>
-                    <option value="Tutorial">Tutorial</option>
-                  </select>
+                  />
                 </div>
               </div>
 
@@ -833,13 +1149,13 @@ export const UniversityView: React.FC = () => {
 
               <div>
                 <label className="block font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Classroom / Lab Number
+                  Notes & Details (Optional)
                 </label>
-                <input
-                  type="text"
-                  value={classRoom}
-                  onChange={e => setClassRoom(e.target.value)}
-                  placeholder="e.g. Hall B-204"
+                <textarea
+                  rows={2}
+                  value={classNotes}
+                  onChange={e => setClassNotes(e.target.value)}
+                  placeholder="e.g. Focus on assembly arithmetic instructions or OOP polymorphic lab tasks..."
                   className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-white"
                 />
               </div>

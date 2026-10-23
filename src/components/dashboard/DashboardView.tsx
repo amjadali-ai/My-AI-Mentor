@@ -24,6 +24,9 @@ export const DashboardView: React.FC = () => {
     nextClass,
     upcomingDeadlines,
     todayTasks,
+    overdueTasks,
+    upcomingTasks,
+    completedTasks,
     setTaskStatus,
     todayStudyMinutes,
     goals,
@@ -32,8 +35,11 @@ export const DashboardView: React.FC = () => {
     showNotification,
   } = useApp();
 
-  const completedTasks = todayTasks.filter(t => t.status === 'completed');
-  const taskCompletionRate = todayTasks.length > 0 ? Math.round((completedTasks.length / todayTasks.length) * 100) : 0;
+  const [dashboardTaskTab, setDashboardTaskTab] = React.useState<'today' | 'overdue' | 'upcoming' | 'completed'>('today');
+
+  const taskCompletionRate = (todayTasks.length + completedTasks.length) > 0
+    ? Math.round((completedTasks.length / (todayTasks.length + completedTasks.length)) * 100)
+    : 0;
 
   // Calculate dynamic recommendation grounded in real student data
   const dynamicRecommendation = React.useMemo(() => {
@@ -356,15 +362,15 @@ export const DashboardView: React.FC = () => {
 
         {/* Right 5 Columns: Today's Tasks + AI Mentor Grounded Recommendation */}
         <div className="lg:col-span-5 space-y-6">
-          {/* Today's Tasks Card */}
+          {/* Tasks Card with Overdue, Today, Upcoming, Completed Grouping */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-3">
               <div>
                 <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                  Today's Planned Tasks
+                  Tasks Organization
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Action list for today's focused execution
+                  Categorized by overdue, today's plan, upcoming, and completed
                 </p>
               </div>
               <button
@@ -376,61 +382,141 @@ export const DashboardView: React.FC = () => {
               </button>
             </div>
 
-            {todayTasks.length === 0 ? (
-              <div className="py-8 text-center text-xs text-slate-500 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
-                No tasks planned for today. Click "Add Task" or use Tomorrow Planner.
-              </div>
-            ) : (
-              <div className="space-y-2.5">
-                {todayTasks.map(task => {
-                  const isDone = task.status === 'completed';
-                  return (
-                    <div
-                      key={task.id}
-                      className={`p-3 rounded-xl border transition-colors flex items-start gap-3 ${
-                        isDone
-                          ? 'bg-slate-50 dark:bg-slate-800/30 border-slate-200/50 dark:border-slate-800/50 opacity-60'
-                          : 'bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700/80 hover:border-slate-300'
-                      }`}
-                    >
-                      <button
-                        onClick={() => handleToggleTask(task.id, task.status)}
-                        className="mt-0.5 text-slate-400 hover:text-emerald-500 transition-colors"
-                      >
-                        {isDone ? (
-                          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                        ) : (
-                          <Circle className="w-4 h-4" />
-                        )}
-                      </button>
+            {/* Task Group Filter Pills */}
+            <div className="flex items-center gap-1 p-1 bg-slate-200/70 dark:bg-slate-800/80 rounded-xl mb-4 overflow-x-auto">
+              <button
+                type="button"
+                onClick={() => setDashboardTaskTab('today')}
+                className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${
+                  dashboardTaskTab === 'today'
+                    ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                Today ({todayTasks.length})
+              </button>
+              {overdueTasks.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setDashboardTaskTab('overdue')}
+                  className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${
+                    dashboardTaskTab === 'overdue'
+                      ? 'bg-rose-500 text-white shadow-xs'
+                      : 'text-rose-600 dark:text-rose-400'
+                  }`}
+                >
+                  Overdue ({overdueTasks.length})
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setDashboardTaskTab('upcoming')}
+                className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${
+                  dashboardTaskTab === 'upcoming'
+                    ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                Upcoming ({upcomingTasks.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setDashboardTaskTab('completed')}
+                className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${
+                  dashboardTaskTab === 'completed'
+                    ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                Done ({completedTasks.length})
+              </button>
+            </div>
 
-                      <div className="flex-1 min-w-0">
-                        <div
-                          className={`text-xs font-medium ${
-                            isDone
-                              ? 'line-through text-slate-500'
-                              : 'text-slate-900 dark:text-slate-100'
-                          }`}
+            {(() => {
+              const currentList =
+                dashboardTaskTab === 'today'
+                  ? todayTasks
+                  : dashboardTaskTab === 'overdue'
+                  ? overdueTasks
+                  : dashboardTaskTab === 'upcoming'
+                  ? upcomingTasks
+                  : completedTasks;
+
+              if (currentList.length === 0) {
+                return (
+                  <div className="py-8 text-center text-xs text-slate-500 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+                    {dashboardTaskTab === 'today' && 'No tasks planned for today.'}
+                    {dashboardTaskTab === 'overdue' && 'Great work! No overdue tasks.'}
+                    {dashboardTaskTab === 'upcoming' && 'No upcoming future tasks scheduled.'}
+                    {dashboardTaskTab === 'completed' && 'No completed tasks recorded yet.'}
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+                  {currentList.map(task => {
+                    const isDone = task.status === 'completed';
+                    const isOverdue = !isDone && task.plannedDate && task.plannedDate < new Date().toISOString().split('T')[0];
+
+                    return (
+                      <div
+                        key={task.id}
+                        className={`p-3 rounded-xl border transition-colors flex items-start gap-3 ${
+                          isDone
+                            ? 'bg-slate-50 dark:bg-slate-800/30 border-slate-200/50 dark:border-slate-800/50 opacity-60'
+                            : isOverdue
+                            ? 'bg-rose-50/40 dark:bg-rose-950/20 border-rose-200/80 dark:border-rose-900/60'
+                            : 'bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700/80 hover:border-slate-300'
+                        }`}
+                      >
+                        <button
+                          onClick={() => handleToggleTask(task.id, task.status)}
+                          className="mt-0.5 text-slate-400 hover:text-emerald-500 transition-colors"
                         >
-                          {task.title}
-                        </div>
-                        <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-400">
-                          <span>{task.category}</span>
-                          <span>·</span>
-                          <span className="font-mono tabular-nums">{task.estimatedMinutes}m</span>
-                          {task.priority === 'urgent' && (
-                            <>
-                              <span>·</span>
-                              <span className="text-rose-500 font-medium">Urgent</span>
-                            </>
+                          {isDone ? (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                          ) : (
+                            <Circle className="w-4 h-4" />
                           )}
+                        </button>
+
+                        <div className="flex-1 min-w-0">
+                          <div
+                            className={`text-xs font-medium ${
+                              isDone
+                                ? 'line-through text-slate-500'
+                                : 'text-slate-900 dark:text-slate-100'
+                            }`}
+                          >
+                            {task.title}
+                          </div>
+                          <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-400 flex-wrap">
+                            <span>{task.category}</span>
+                            <span>·</span>
+                            <span className="font-mono tabular-nums">{task.estimatedMinutes}m</span>
+                            {task.plannedDate && (
+                              <>
+                                <span>·</span>
+                                <span className={`font-mono ${isOverdue ? 'text-rose-500 font-semibold' : ''}`}>
+                                  {task.plannedDate}
+                                </span>
+                              </>
+                            )}
+                            {task.priority === 'urgent' && (
+                              <>
+                                <span>·</span>
+                                <span className="text-rose-500 font-medium">Urgent</span>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              );
+            })()}
 
             <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
               <span className="text-slate-500">Plan for tomorrow evening</span>

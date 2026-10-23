@@ -135,15 +135,20 @@ export const SettingsView: React.FC = () => {
   };
 
   const handleExportBackup = async () => {
-    const jsonStr = await exportBackup();
-    const blob = new Blob([jsonStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `my-ai-mentor-backup-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showNotification('Backup exported successfully.', 'success');
+    try {
+      const jsonStr = await exportBackup();
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `my-ai-mentor-backup-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showNotification('Backup exported successfully.', 'success');
+    } catch (err) {
+      console.error('Export backup failed:', err);
+      showNotification('Failed to export backup. See console for details.', 'error');
+    }
   };
 
   const handleExportEncryptedBackupSubmit = async (e: React.FormEvent) => {

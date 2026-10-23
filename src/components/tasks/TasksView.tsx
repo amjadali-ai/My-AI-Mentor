@@ -32,7 +32,7 @@ export const TasksView: React.FC = () => {
     showNotification,
   } = useApp();
 
-  const [filterTab, setFilterTab] = useState<'today' | 'tomorrow' | 'all' | 'completed'>('today');
+  const [filterTab, setFilterTab] = useState<'today' | 'tomorrow' | 'overdue' | 'upcoming' | 'all' | 'completed'>('today');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -64,6 +64,7 @@ export const TasksView: React.FC = () => {
   const [category, setCategory] = useState<TaskCategory>('DSA & OOP');
   const [subjectId, setSubjectId] = useState<string>('');
   const [goalId, setGoalId] = useState<string>('');
+  const [milestoneId, setMilestoneId] = useState<string>('');
   const [priority, setPriority] = useState<Priority>('medium');
   const [plannedDate, setPlannedDate] = useState(new Date().toISOString().split('T')[0]);
   const [plannedTime, setPlannedTime] = useState('');
@@ -80,6 +81,7 @@ export const TasksView: React.FC = () => {
       setCategory(t.category);
       setSubjectId(t.subjectId || '');
       setGoalId(t.goalId || '');
+      setMilestoneId(t.milestoneId || '');
       setPriority(t.priority);
       setPlannedDate(t.plannedDate || todayStr);
       setPlannedTime(t.plannedTime || '');
@@ -91,6 +93,7 @@ export const TasksView: React.FC = () => {
       setCategory('DSA & OOP');
       setSubjectId(subjects[0]?.id || '');
       setGoalId(goals[0]?.id || '');
+      setMilestoneId('');
       setPriority('medium');
       setPlannedDate(filterTab === 'tomorrow' ? tomorrowStr : todayStr);
       setPlannedTime('');
@@ -111,6 +114,7 @@ export const TasksView: React.FC = () => {
         category,
         subjectId: subjectId || undefined,
         goalId: goalId || undefined,
+        milestoneId: milestoneId || undefined,
         priority,
         plannedDate,
         plannedTime: plannedTime || undefined,
@@ -123,6 +127,7 @@ export const TasksView: React.FC = () => {
         category,
         subjectId: subjectId || undefined,
         goalId: goalId || undefined,
+        milestoneId: milestoneId || undefined,
         priority,
         plannedDate,
         plannedTime: plannedTime || undefined,
@@ -158,6 +163,13 @@ export const TasksView: React.FC = () => {
       if (t.status === 'completed') return false;
     } else if (filterTab === 'tomorrow') {
       if (t.plannedDate !== tomorrowStr) return false;
+      if (t.status === 'completed') return false;
+    } else if (filterTab === 'overdue') {
+      if (!t.plannedDate || t.plannedDate >= todayStr) return false;
+      if (t.status === 'completed') return false;
+    } else if (filterTab === 'upcoming') {
+      if (!t.plannedDate || t.plannedDate <= todayStr) return false;
+      if (t.status === 'completed') return false;
     } else if (filterTab === 'completed') {
       if (t.status !== 'completed') return false;
     }
@@ -271,10 +283,10 @@ export const TasksView: React.FC = () => {
       {/* Filter Tabs & Category Filter */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         {/* Main Tabs */}
-        <div className="flex items-center gap-1 p-1 bg-slate-200/70 dark:bg-slate-800/80 rounded-xl w-fit">
+        <div className="flex items-center gap-1 p-1 bg-slate-200/70 dark:bg-slate-800/80 rounded-xl w-fit overflow-x-auto">
           <button
             onClick={() => setFilterTab('today')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${
               filterTab === 'today'
                 ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
@@ -284,7 +296,7 @@ export const TasksView: React.FC = () => {
           </button>
           <button
             onClick={() => setFilterTab('tomorrow')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${
               filterTab === 'tomorrow'
                 ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
@@ -292,9 +304,31 @@ export const TasksView: React.FC = () => {
           >
             Tomorrow Planned ({tomorrowTasksList.length})
           </button>
+          {tasks.some(t => t.status !== 'completed' && t.plannedDate && t.plannedDate < todayStr) && (
+            <button
+              onClick={() => setFilterTab('overdue')}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${
+                filterTab === 'overdue'
+                  ? 'bg-rose-500 text-white shadow-xs'
+                  : 'text-rose-600 dark:text-rose-400 hover:text-rose-700'
+              }`}
+            >
+              Overdue ({tasks.filter(t => t.status !== 'completed' && t.plannedDate && t.plannedDate < todayStr).length})
+            </button>
+          )}
+          <button
+            onClick={() => setFilterTab('upcoming')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${
+              filterTab === 'upcoming'
+                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+            }`}
+          >
+            Upcoming
+          </button>
           <button
             onClick={() => setFilterTab('all')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${
               filterTab === 'all'
                 ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
@@ -304,7 +338,7 @@ export const TasksView: React.FC = () => {
           </button>
           <button
             onClick={() => setFilterTab('completed')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${
               filterTab === 'completed'
                 ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
@@ -398,6 +432,15 @@ export const TasksView: React.FC = () => {
                           <>
                             <span>·</span>
                             <span className="text-violet-500 truncate max-w-[150px]">{linkedGoal.title}</span>
+                            {task.milestoneId && (() => {
+                              const foundMilestone = linkedGoal.milestones.find(m => m.id === task.milestoneId);
+                              if (!foundMilestone) return null;
+                              return (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-100 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 truncate max-w-[120px]">
+                                  Milestone: {foundMilestone.title}
+                                </span>
+                              );
+                            })()}
                           </>
                         )}
 
@@ -776,7 +819,10 @@ export const TasksView: React.FC = () => {
                   </label>
                   <select
                     value={goalId}
-                    onChange={e => setGoalId(e.target.value)}
+                    onChange={e => {
+                      setGoalId(e.target.value);
+                      setMilestoneId('');
+                    }}
                     className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-white"
                   >
                     <option value="">None</option>
@@ -788,6 +834,30 @@ export const TasksView: React.FC = () => {
                   </select>
                 </div>
               </div>
+
+              {goalId && (() => {
+                const targetGoal = goals.find(g => g.id === goalId);
+                if (!targetGoal || targetGoal.milestones.length === 0) return null;
+                return (
+                  <div>
+                    <label className="block font-medium text-slate-700 dark:text-slate-300 mb-1">
+                      Link to Specific Milestone (Optional)
+                    </label>
+                    <select
+                      value={milestoneId}
+                      onChange={e => setMilestoneId(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-white"
+                    >
+                      <option value="">General Goal Task (No specific milestone)</option>
+                      {targetGoal.milestones.map(m => (
+                        <option key={m.id} value={m.id}>
+                          {m.title} {m.completed ? '✓ (Completed)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              })()}
 
               <div className="grid grid-cols-3 gap-3">
                 <div>

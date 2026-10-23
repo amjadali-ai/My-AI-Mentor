@@ -6,13 +6,13 @@ import { GoogleGenAI, Modality } from "@google/genai";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
-if (process.env.USER_DATA_PATH) {
-  const userEnv = path.join(process.env.USER_DATA_PATH, ".env");
-  if (fs.existsSync(userEnv)) {
-    dotenv.config({ path: userEnv });
-  }
+const userDataPath = process.env.USER_DATA_PATH || path.join(process.env.APPDATA || "", "My AI Mentor");
+const userEnvPath = path.join(userDataPath, ".env");
+if (fs.existsSync(userEnvPath)) {
+  dotenv.config({ path: userEnvPath });
+} else {
+  dotenv.config();
 }
-dotenv.config();
 const currentDirname = typeof __dirname !== "undefined" ? __dirname : path.dirname(fileURLToPath(import.meta.url));
 function parseCliArg(flag) {
   const index = process.argv.indexOf(flag);
@@ -125,7 +125,7 @@ ${context.recentReflections ? `Recent Reflections & Distractions: ${context.rece
 Student message: ${prompt}` }]
     });
     const response = await ai.models.generateContent({
-      model: "gemini-3.8-flash",
+      model: process.env.GEMINI_MODEL || "gemini-3.6-flash",
       contents: conversationContents,
       config: {
         systemInstruction: activeInstruction,
@@ -180,7 +180,7 @@ Respond in clean JSON with this format:
   "caution": "Warning about any potential bottleneck or distraction risk"
 }`;
     const response = await ai.models.generateContent({
-      model: "gemini-3.8-flash",
+      model: process.env.GEMINI_MODEL || "gemini-3.6-flash",
       contents: promptText,
       config: {
         responseMimeType: "application/json"
@@ -226,7 +226,7 @@ Respond in clean JSON:
   "mentorVerdict": "One direct paragraph of mentor advice"
 }`;
     const response = await ai.models.generateContent({
-      model: "gemini-3.8-flash",
+      model: process.env.GEMINI_MODEL || "gemini-3.6-flash",
       contents: promptText,
       config: {
         responseMimeType: "application/json"

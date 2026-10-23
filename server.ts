@@ -7,14 +7,16 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// Load user-specific desktop environment if provided, then root .env
-if (process.env.USER_DATA_PATH) {
-  const userEnv = path.join(process.env.USER_DATA_PATH, '.env');
-  if (fs.existsSync(userEnv)) {
-    dotenv.config({ path: userEnv });
-  }
+// Load .env from the user data directory (AppData) and fall back to project root if missing
+const userDataPath = process.env.USER_DATA_PATH || path.join(process.env.APPDATA || '', 'My AI Mentor');
+const userEnvPath = path.join(userDataPath, '.env');
+if (fs.existsSync(userEnvPath)) {
+  dotenv.config({ path: userEnvPath });
+} else {
+  // Fallback to .env in the project directory (useful for development)
+  dotenv.config();
 }
-dotenv.config();
+
 
 const currentDirname = typeof __dirname !== 'undefined'
   ? __dirname
@@ -142,7 +144,7 @@ ${context.recentReflections ? `Recent Reflections & Distractions: ${context.rece
     });
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
+      model: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
       contents: conversationContents,
       config: {
         systemInstruction: activeInstruction,
@@ -204,7 +206,7 @@ Respond in clean JSON with this format:
 }`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
+      model: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
       contents: promptText,
       config: {
         responseMimeType: 'application/json',
@@ -257,7 +259,7 @@ Respond in clean JSON:
 }`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
+      model: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
       contents: promptText,
       config: {
         responseMimeType: 'application/json',

@@ -185,12 +185,27 @@ export async function initDatabase(): Promise<void> {
 
   // Detect and purge old template demo records (e.g. sub-1 / CS-301)
   const existingSubjects = await db.getAll('subjects');
-  const isPreviousDemoData = existingSubjects.some(
-    s => s.id === 'sub-1' || s.code === 'CS-301' || s.name === 'Data Structures & Algorithms'
-  );
+  const isDemoSubject = (s: UniversitySubject) => s.id === 'sub-1' || s.code === 'CS-301' || s.name === 'Data Structures & Algorithms';
+  const hasDemoSubject = existingSubjects.some(isDemoSubject);
 
-  if (isPreviousDemoData) {
+  // Determine if the database contains only demo data (no user-created records)
+  const otherStoresCounts = await Promise.all([
+    db.count('timetable'),
+    db.count('deadlines'),
+    db.count('tasks'),
+    db.count('goals'),
+    db.count('studySessions'),
+    db.count('reflections'),
+    db.count('weeklyReviews'),
+    db.count('mentorChat'),
+  ]);
+  const hasOnlyDemoData = hasDemoSubject && otherStoresCounts.every(c => c === 0);
+
+  if (hasOnlyDemoData) {
+    console.log('[DB Init] Demo data detected with no user records – clearing personal records.');
     await clearAllPersonalRecords(db);
+  } else if (hasDemoSubject) {
+    console.log('[DB Init] Demo subject present but user data exists – preserving records.');
   }
 }
 
