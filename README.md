@@ -1,37 +1,55 @@
 # My AI Mentor
+
 > Personal AI Study Mentor, Productivity, Self-Improvement and Life Management System for BS Artificial Intelligence Students.
 
 ## Overview
-**My AI Mentor** is a laptop-first, local-first intelligent management application designed for undergraduate Artificial Intelligence and Computer Science students. It unifies:
-1. **University Coursework & Timetable**: Manage subjects, daily/weekly class schedules, and deadlines (assignments, quizzes, labs, exams).
-2. **Tasks & Tomorrow Planning**: Prioritized task tracking, time estimation vs. actual duration, and an evening tomorrow planner that prevents schedule overload.
-3. **Goals & Milestones Roadmap**: Long-term progress tracking across 8 key domains (Academic, C++/Python, OOP & DSA, AI & ML, Projects & Research, Career, Personal, Ambition) with mathematically calculated progress.
-4. **Study Timer & Session History**: Pomodoro and stopwatch timers with structured post-study reflections ("What did I study? What did I learn? What is unclear? What to practice next?").
-5. **Daily Evening Reflection & Weakness Tracking**: Reflection questionnaire capturing daily wins, concept learnings, distraction patterns, and root-cause analysis of missed tasks.
-6. **Weekly Sunday Progress Review**: Objective 7-day performance reports synthesizing completion rates, study distributions, and upcoming priorities.
-7. **AI Mentor powered by Google Gemini**: 4 distinct mentor personas (Mentor, Coach, Strict Mentor, Support) with privacy controls and 1-click task conversion.
-8. **Security & PIN Lock**: Salted PBKDF2 hash-based app locking, rate limiting (5 attempts per 10 minutes), inactivity auto-lock, and emergency recovery phrase.
 
-## Architecture & Technology Stack
-- **Frontend**: React 19, TypeScript, Tailwind CSS, Motion, Lucide icons.
-- **Backend**: Express server with Vite middleware integration in development.
-- **AI Integration**: Official `@google/genai` TypeScript SDK using `gemini-3.8-flash`. All AI calls are server-proxied (`/api/gemini/*`) to ensure API keys are never exposed to client bundles.
-- **Storage**: Browser IndexedDB (`idb`) ensuring zero cloud data leakage, offline operation, and survival across laptop restarts and browser refreshes.
-- **Security**: Web Crypto API (`crypto.subtle`) with PBKDF2 (100,000 iterations), unique cryptographic salt, and emergency SHA-256 recovery verification.
+**My AI Mentor** is a laptop-first, local-first intelligent management application designed for undergraduate Artificial Intelligence and Computer Science students.
+
+### Core Features
+
+1. **University Coursework & Timetable** — Manage subjects, weekly class schedules, and assignment, quiz, lab, and exam deadlines.
+2. **Tasks & Tomorrow Planning** — Track priorities, estimate task durations, and plan the next day.
+3. **Goals & Milestones** — Track progress across academic, programming, AI/ML, projects, career, and personal goals.
+4. **Study Timer & Session History** — Use study timers and reflect on what you learned and what needs more practice.
+5. **Daily Reflection** — Record achievements, distractions, weaknesses, and reasons for unfinished tasks.
+6. **Weekly Progress Review** — Review study activity, completion rates, and upcoming priorities.
+7. **AI Mentor** — Integrate Google Gemini to support learning, planning, and productivity.
+8. **Security & PIN Lock** — Provide app locking and recovery features.
+
+## Technology Stack
+
+- **Frontend:** React 19, TypeScript, Tailwind CSS, Motion, Lucide icons.
+- **Backend:** Express and Vite.
+- **AI Integration:** Google GenAI SDK.
+- **Storage:** IndexedDB for local data storage.
+- **Security:** Web Crypto API and PBKDF2-based PIN protection.
 
 ## Running the Application
+
+Install dependencies:
+
 ```bash
-# Install dependencies
 npm install
+```
 
-# Start development server (serves on port 3000)
+Start the development server:
+
+```bash
 npm run dev
+```
 
-# Build production bundle
+Build the application:
+
+```bash
 npm run build
 ```
 
 ## Backup & Restore
-In the **Settings & Security** panel:
-- Click **Export Full JSON Backup** to download your complete study records.
-- Click **Restore from JSON** to reload records onto any device.
+
+Use the Settings & Security section to export a JSON backup and restore saved study records.
+
+## Privacy
+
+The application is designed with local-first storage in mind. Review your current configuration before enabling cloud services or sharing sensitive data.
+
